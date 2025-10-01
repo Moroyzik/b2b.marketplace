@@ -1,0 +1,115 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: marketplace-postgres
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: marketplace
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: marketplace-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: marketplace-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio
+    container_name: marketplace-minio
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: marketplace-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  auth:
+    build: ../services/auth
+    container_name: auth-service
+    env_file:
+      - ../services/auth/.env
+    environment:
+      DATABASE_URL: postgres://dev:dev@postgres:5432/marketplace?sslmode=disable
+      REDIS_ADDR: redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+
+  catalog:
+    build: ../services/catalog
+    container_name: catalog-service
+    env_file:
+      - ../services/catalog/.env
+    environment:
+      DATABASE_URL: postgres://dev:dev@postgres:5432/marketplace?sslmode=disable
+      # Set JWT_PUBLIC_KEY to match auth's public key for token validation
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+
+  gateway:
+    build: ../services/gateway
+    container_name: api-gateway
+    depends_on:
+      - auth
+      - catalog
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+
