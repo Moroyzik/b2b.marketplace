@@ -1,0 +1,176 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: marketplace
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  minio:
+    image: minio/minio
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+
+  api-gateway:
+    build: ./services/gateway
+    environment:
+      PORT: 8080
+      AUTH_SERVICE_URL: http://auth:8080
+      CATALOG_SERVICE_URL: http://catalog:8080
+      OFFER_SERVICE_URL: http://offer:8080
+      SEARCH_SERVICE_URL: http://search:8080
+      CART_SERVICE_URL: http://cart:8080
+      ORDER_SERVICE_URL: http://order:8080
+      SUPPLIER_SERVICE_URL: http://supplier:8080
+      MEDIA_SERVICE_URL: http://media:8080
+      NOTIFICATION_SERVICE_URL: http://notification:8080
+      USER_SERVICE_URL: http://user:8080
+      ADMIN_SERVICE_URL: http://admin:8080
+      COMPARE_SERVICE_URL: http://compare:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth
+      - catalog
+      - search
+
+  auth:
+    build: ./services/auth
+    env_file: ./services/auth/.env.example
+    environment:
+      PORT: 8080
+    ports:
+      - "8001:8080"
+    depends_on:
+      - postgres
+      - redis
+
+  catalog:
+    build: ./services/catalog
+    env_file: ./services/catalog/.env.example
+    environment:
+      PORT: 8080
+    ports:
+      - "8002:8080"
+    depends_on:
+      - postgres
+      - minio
+
+  offer:
+    build: ./services/offer
+    env_file: ./services/offer/.env.example
+    environment:
+      PORT: 8080
+    ports:
+      - "8003:8080"
+    depends_on:
+      - postgres
+
+  search:
+    build: ./services/search
+    env_file: ./services/search/.env.example
+    environment:
+      PORT: 8080
+    ports:
+      - "8004:8080"
+    depends_on:
+      - elasticsearch
+      - rabbitmq
+
+  cart:
+    build: ./services/cart
+    env_file: ./services/cart/.env.example
+    environment:
+      PORT: 8080
+    ports:
+      - "8005:8080"
+    depends_on:
+      - postgres
+      - redis
+
+  order:
+    build: ./services/order
+    env_file: ./services/order/.env.example
+    environment:
+      PORT: 8080
+    ports:
+      - "8006:8080"
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  user:
+    build: ./services/user
+    environment:
+      PORT: 8080
+    ports:
+      - "8007:8080"
+
+  supplier:
+    build: ./services/supplier
+    environment:
+      PORT: 8080
+    ports:
+      - "8008:8080"
+
+  media:
+    build: ./services/media
+    environment:
+      PORT: 8080
+    ports:
+      - "8009:8080"
+
+  notification:
+    build: ./services/notification
+    environment:
+      PORT: 8080
+    ports:
+      - "8010:8080"
+
+  admin:
+    build: ./services/admin
+    environment:
+      PORT: 8080
+    ports:
+      - "8011:8080"
+
+  compare:
+    build: ./services/compare
+    environment:
+      PORT: 8080
+    ports:
+      - "8012:8080"
+
+volumes:
+  pgdata:
+

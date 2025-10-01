@@ -1,0 +1,31 @@
+# General
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+
+# Go
+bin/
+dist/
+coverage.out
+*.test
+
+# IDE/editor
+.idea/
+.vscode/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Node (if any tooling later)
+node_modules/
+
+# Docker
+**/vendor/
+**/.cache/
+**/.docker/
+
